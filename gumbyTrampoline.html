@@ -9,6 +9,7 @@
     <title>Gamedev Canvas Workshop</title>
     <img style="display:none" id = "charles_head" src="https://drive.google.com/uc?export=view&id=1DsKQZMjhWMr4cHxh_jsakrbrO2FqjdSX">
     <img style="display:none" id = "gumby" src="https://drive.google.com/uc?export=view&id=1gV47Nqqu346UpOoRpscXuH9jGxFUcB5G">
+    <img style="display:none" id = "controls" src="https://drive.google.com/uc?export=view&id=13f4Ay0SqvKtmTSzL_Onqnu-71xs0qPRN">
     <style>
     	* { margin:  0 !important;
     		padding: 0 !important; }
@@ -21,6 +22,8 @@
 <canvas id="myCanvas"></canvas>
 
 <script>
+var controlsImg = document.getElementById("controls");
+
 var charlesImg = document.getElementById("charles_head");
 var charlesW = 85;
 var charlesH = 85;
@@ -259,6 +262,7 @@ function draw() {
 	ctx.beginPath();
 	ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, canvasW, canvasH);
+    ctx.drawImage(controlsImg, canvasW - controlsImg.width / 2 - 20, 20, controlsImg.width / 2, controlsImg.height / 2);
     ctx.closePath();
 
     //Render Game title
