@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+
+<!-- Everything is done in JavaScript and HTML -->
+
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Gamedev Canvas Workshop</title>
+    <img style="display:none" id = "charles_head" src="https://drive.google.com/uc?export=view&id=1DsKQZMjhWMr4cHxh_jsakrbrO2FqjdSX">
+    <img style="display:none" id = "gumby" src="https://drive.google.com/uc?export=view&id=1gV47Nqqu346UpOoRpscXuH9jGxFUcB5G">
+    <style>
+    	* { margin:  0 !important;
+    		padding: 0 !important; }
+    	canvas { background: #eee; display: block; margin: 0 auto; }
+    </style>
+</head>
+
+<body>
+
+<canvas id="myCanvas"></canvas>
+
+<script>
+var charlesImg = document.getElementById("charles_head");
+var charlesW = 85;
+var charlesH = 85;
+
+
+var gumbyImg = document.getElementById("gumby");
+var gumbyW = 100;
+var gumbyH = 250;
+
+var canvas = document.getElementById("myCanvas");;
+var ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight; 
+
+var canvasW = canvas.width;
+var canvasH = canvas.height;
+
+var player_mass = .5;
+var player_move_force = 600;
+var player_friction = .5;
+var air_friction = .2;
+var player_jump = 500;
+var gravity = 500;
+var can_double_jump = false;
+
+var kill_count = 0;
+var death_count = 0;
+var missed_count = 0;
+
+var charles_buffer = [];
+var max_charles_speed = 300;
+var min_charles_speed = 150;
+
+var DT = 15; //miliseconds
+
+var rightPressed = false;
+var leftPressed = false;
+var spacePressed = false;
+
+document.addEventListener("keydown", keyDownHandler, false);
+document.addEventListener("keyup", keyUpHandler, false);
+
+function keyDownHandler(e) {
+    if(e.key == "Right" || e.key == "ArrowRight") {
+        rightPressed = true;
+    }
+    else if(e.key == "Left" || e.key == "ArrowLeft") {
+        leftPressed = true;
+    }
+    else if(e.key == " ") {
+        spacePressed = true;
+    }
+}
+
+function keyUpHandler(e) {
+    if(e.key == "Right" || e.key == "ArrowRight") {
+        rightPressed = false;
+    }
+    else if(e.key == "Left" || e.key == "ArrowLeft") {
+        leftPressed = false;
+    }
+    else if(e.key == " ") {
+        spacePressed = false;
+    }
+}
+
+
+
+class Player {
+
+	constructor() {
+		this.height = gumbyH;
+		this.width = gumbyW / 2;
+
+		this.x = canvasW / 2;
+		this.y = canvasH - this.height;
+
+		this.vx = 0;
+		this.vy = 0;
+
+		this.ax = 0;
+		this.ay = 0;
+	}
+
+	drawPlayer() {
+	    ctx.beginPath();
+	    //ctx.rect(this.x, this.y, this.width, this.height);
+		//ctx.fillStyle = "#FF0000";
+		//ctx.fill();
+		ctx.drawImage(gumbyImg, this.x - this.width / 4, this.y, this.width * 2, this.height);
+	    ctx.closePath();
+	}
+
+	movePlayer() {
+		var friction_coeff = air_friction;
+		var jump_vel = -this.vy;
+		if (this.vy == 0) { // not moving in the vertical direction
+			friction_coeff = player_friction; // only have friction when we are touching the ground
+			jump_vel = player_jump; // you can only jump when you are touching the ground
+		}
+
+		//Set ax value based on keypress
+		if (rightPressed && !leftPressed) {
+			this.ax = (player_move_force - friction_coeff*this.vx)/player_mass;
+		}
+
+		else if (leftPressed && !rightPressed) {
+			this.ax =(-player_move_force - friction_coeff*this.vx)/player_mass;
+		} 
+
+		else if ((leftPressed && rightPressed) || (!rightPressed && !leftPressed)) {
+
+			this.ax = (-friction_coeff*this.vx)/player_mass;
+		}
+
+		if (spacePressed) {
+			if (can_double_jump) {
+				jump_vel = player_jump;
+				can_double_jump = false;
+			}
+			this.vy = -jump_vel;
+			this.ay = (-friction_coeff*this.vy + gravity)/player_mass;
+		} else {
+			this.ay = (-friction_coeff*this.vy + gravity)/player_mass;
+		}
+
+		this.vx = this.vx + 0.001*DT*this.ax;
+		this.vy = this.vy + 0.001*DT*this.ay; //integrate!!
+
+		this.x = this.x + 0.001*DT*this.vx;
+        this.y = this.y + 0.001*DT*this.vy;
+
+        var RIGHT_LIMIT = canvasW - this.width;
+        var LEFT_LIMIT = 0;
+        var BOTTOM_LIMIT = canvasH - this.height;
+        var TOP_LIMIT = 0;
+
+        if (this.x > RIGHT_LIMIT){
+	      this.vx = 0;
+	      this.x = RIGHT_LIMIT;
+	    }
+	    if (this.x < LEFT_LIMIT) {
+	      this.vx = 0;
+	      this.x = LEFT_LIMIT;
+	    }
+	    if (this.y < TOP_LIMIT){
+	      this.vy = 0;
+	      this.y = TOP_LIMIT;
+	    }
+	    if (this.y > BOTTOM_LIMIT) {
+	      this.vy = 0;
+	      this.y = BOTTOM_LIMIT;
+	    }
+
+
+	}
+
+}
+
+class charlesHead {
+	constructor() {
+		this.radius = charlesW;
+		this.y = canvasH - this.radius;
+		this.x =0;
+		this.vx = 0;
+
+		if (Math.random() > .5) { // Spawn on the left
+			this.x = -3*this.radius;
+			this.vx = Math.random() * (max_charles_speed - min_charles_speed) + min_charles_speed;
+		} else { // spawn on the right
+			this.x = canvasW + 3*this.radius;
+			this.vx = -Math.random() * (max_charles_speed - min_charles_speed) - min_charles_speed;
+		}
+	}
+
+	draw() {
+	    ctx.beginPath();
+	    //ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+		//ctx.fillStyle = "#0000FF";
+		//ctx.fill();
+		ctx.drawImage(charlesImg, this.x, this.y, this.radius, this.radius);
+	    ctx.closePath();
+	}
+
+	move() {
+		this.x = this.x + 0.001*DT*this.vx;
+
+        var RIGHT_LIMIT = canvasW + 4*this.radius;
+        var LEFT_LIMIT = -4*this.radius;
+
+        if (this.x > RIGHT_LIMIT){
+	      //delete from buffer
+			for (i = 0; i < charles_buffer.length; i++) {
+				if (charles_buffer[i] == this) {
+					charles_buffer.splice(i, 1);
+					missed_count = missed_count + 1;
+					break;
+				}
+			}
+	    }
+	    if (this.x < LEFT_LIMIT) {
+	    	//delete from buffer
+	      	for (i = 0; i < charles_buffer.length; i++) {
+				if (charles_buffer[i] == this) {
+					charles_buffer.splice(i, 1);
+					missed_count = missed_count + 1;
+					break;
+				}
+			}
+	    }
+	}
+
+
+}
+
+
+function runGame()
+{
+    setInterval(draw, DT);
+    setInterval(spawnCharlesRandomly, 1000); //spawn charles head about once every two seconds
+}
+
+let player1 = new Player();
+function draw() {
+	checkCollisions();
+
+	//move player
+	player1.movePlayer();
+	for (i = 0; i < charles_buffer.length; i++) {
+		charles_buffer[i].move();
+	}
+	//move all charles objects
+
+    //clear screen
+	ctx.beginPath();
+	ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    ctx.closePath();
+
+    //Render Game title
+    ctx.beginPath();
+    ctx.font = "30px Comic Sans MS";
+	ctx.fillStyle = "red";
+	ctx.textAlign = "center";
+	ctx.fillText("GUMBY TRAMPOLINE", canvas.width/2, canvas.height/4);
+	ctx.closePath();
+
+	//Render Game title
+    ctx.beginPath();
+    ctx.font = "30px Comic Sans MS";
+	ctx.fillStyle = "blue";
+	ctx.textAlign = "left";
+	ctx.fillText("# Charles' Heads Destroyed: " + kill_count, 10, 50);
+	ctx.fillText("# Charles' Heads That Attacked You: " + death_count, 10, 100);
+	ctx.fillText("# Charles' Heads That You Missed: " + missed_count, 10, 150);
+	ctx.closePath();
+
+    //render player
+    player1.drawPlayer();
+    for (i = 0; i < charles_buffer.length; i++) {
+		charles_buffer[i].draw();
+	}
+    //render all charles objects
+   
+}
+
+function getRandomColor() {
+  var letters = '0123456789ABCDEF';
+  var color = '#';
+  for (var i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+
+function spawnCharlesRandomly() {
+	if (Math.random() > .5) {
+		charles_buffer.push(new charlesHead());
+	}
+}
+
+function checkCollisions() {
+	for (i = 0; i < charles_buffer.length; i++) {
+		if (player1.x < charles_buffer[i].x + charles_buffer[i].radius &&
+			player1.x + player1.width > charles_buffer[i].x &&
+			player1.y < charles_buffer[i].y + charles_buffer[i].radius &&
+			player1.y + player1.height > charles_buffer[i].y) {
+				charles_buffer.splice(i, 1);
+
+				if ((player1.y + player1.height < canvasH - charlesH + 5) && player1.vy > 0) { //collided from the top
+					can_double_jump = true;
+					kill_count = kill_count + 1;
+				} else {
+					death_count = death_count + 1;
+				}
+
+		}
+	}
+
+	if (player1.y + player1.height == canvasH) {
+		can_double_jump = false;
+	}
+}
+
+runGame();
+
+</script>
+
+</body>
+
+</html>
